@@ -1,18 +1,17 @@
-<?php
-declare(strict_types=1);
+<?php declare(strict_types = 1);
 
-namespace Lookyman\PHPStan\Symfony\Rules;
+namespace PHPStan\Rules\Symfony;
 
-use Lookyman\PHPStan\Symfony\ServiceMap;
-use PHPStan\Analyser\Scope;
-use PHPStan\Rules\Rule;
-use PHPStan\Type\ObjectType;
-use PHPStan\Type\ThisType;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\MethodCall;
+use PHPStan\Analyser\Scope;
+use PHPStan\Rules\Rule;
+use PHPStan\Symfony\ServiceMap;
+use PHPStan\Type\ObjectType;
+use PHPStan\Type\ThisType;
 
-final class ContainerInterfacePrivateServiceRule implements Rule
+final class ContainerInterfaceUnknownServiceRule implements Rule
 {
 
 	/**
@@ -37,13 +36,16 @@ final class ContainerInterfacePrivateServiceRule implements Rule
 			$baseController = new ObjectType('Symfony\Bundle\FrameworkBundle\Controller\Controller');
 			$isInstanceOfController = $type instanceof ThisType && $baseController->isSuperTypeOf($type)->yes();
 			$isContainerInterface = $type instanceof ObjectType && $type->getClassName() === 'Symfony\Component\DependencyInjection\ContainerInterface';
-			if (($isContainerInterface || $isInstanceOfController)
+			if (($isInstanceOfController || $isContainerInterface)
 				&& isset($node->args[0])
 				&& $node->args[0] instanceof Arg
 			) {
 				$service = $this->serviceMap->getServiceFromNode($node->args[0]->value);
-				if ($service !== \null && !$service['public']) {
-					return [\sprintf('Service "%s" is private.', $service['id'])];
+				if ($service === null) {
+					$serviceId = ServiceMap::getServiceIdFromNode($node->args[0]->value);
+					if ($serviceId !== null) {
+						return [sprintf('Service "%s" is not registered in the container.', $serviceId)];
+					}
 				}
 			}
 		}

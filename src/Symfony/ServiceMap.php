@@ -1,9 +1,7 @@
-<?php
-declare(strict_types=1);
+<?php declare(strict_types = 1);
 
-namespace Lookyman\PHPStan\Symfony;
+namespace PHPStan\Symfony;
 
-use Lookyman\PHPStan\Symfony\Exception\XmlContainerNotExistsException;
 use PhpParser\Node;
 use PhpParser\Node\Expr\BinaryOp\Concat;
 use PhpParser\Node\Expr\ClassConstFetch;
@@ -14,17 +12,16 @@ final class ServiceMap
 {
 
 	/**
-	 * @var array
+	 * @var array<string, array>
 	 */
 	private $services;
 
 	public function __construct(string $containerXml)
 	{
 		$this->services = $aliases = [];
-		/** @var \SimpleXMLElement $def */
-		$xml = @\simplexml_load_file($containerXml);
+		$xml = @simplexml_load_file($containerXml);
 		if ($xml === false) {
-			throw new XmlContainerNotExistsException(\sprintf('Container %s not exists', $containerXml));
+			throw new \PHPStan\Symfony\XmlContainerNotExistsException(sprintf('Container %s not exists', $containerXml));
 		}
 		foreach ($xml->services->service as $def) {
 			$attrs = $def->attributes();
@@ -33,18 +30,18 @@ final class ServiceMap
 			}
 			$service = [
 				'id' => (string) $attrs->id,
-				'class' => isset($attrs->class) ? (string) $attrs->class : \null,
+				'class' => isset($attrs->class) ? (string) $attrs->class : null,
 				'public' => !isset($attrs->public) || (string) $attrs->public !== 'false',
 				'synthetic' => isset($attrs->synthetic) && (string) $attrs->synthetic === 'true',
 			];
 			if (isset($attrs->alias)) {
-				$aliases[(string) $attrs->id] = \array_merge($service, ['alias' => (string) $attrs->alias]);
+				$aliases[(string) $attrs->id] = array_merge($service, ['alias' => (string) $attrs->alias]);
 			} else {
 				$this->services[(string) $attrs->id] = $service;
 			}
 		}
 		foreach ($aliases as $id => $alias) {
-			if (\array_key_exists($alias['alias'], $this->services)) {
+			if (array_key_exists($alias['alias'], $this->services)) {
 				$this->services[$id] = [
 					'id' => $id,
 					'class' => $this->services[$alias['alias']]['class'],
@@ -58,7 +55,7 @@ final class ServiceMap
 	public function getServiceFromNode(Node $node): ?array
 	{
 		$serviceId = self::getServiceIdFromNode($node);
-		return $serviceId !== \null && \array_key_exists($serviceId, $this->services) ? $this->services[$serviceId] : \null;
+		return $serviceId !== null && array_key_exists($serviceId, $this->services) ? $this->services[$serviceId] : null;
 	}
 
 	public static function getServiceIdFromNode(Node $node): ?string
@@ -68,7 +65,7 @@ final class ServiceMap
 		}
 		if ($node instanceof ClassConstFetch && $node->class instanceof Name) {
 			$serviceId = $node->class->toString();
-			if (!\in_array($serviceId, ['self', 'static', 'parent'], true)) {
+			if (!in_array($serviceId, ['self', 'static', 'parent'], true)) {
 				return $serviceId;
 			}
 		}
@@ -76,10 +73,10 @@ final class ServiceMap
 			$left = self::getServiceIdFromNode($node->left);
 			$right = self::getServiceIdFromNode($node->right);
 			if ($left !== null && $right !== null) {
-				return \sprintf('%s%s', $left, $right);
+				return sprintf('%s%s', $left, $right);
 			}
 		}
-		return \null;
+		return null;
 	}
 
 }
