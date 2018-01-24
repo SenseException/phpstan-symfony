@@ -35,6 +35,10 @@ final class ContainerInterfaceUnknownServiceRuleTest extends \PHPStan\Testing\Ru
 					'Service "service.PHPStan\Symfony\ServiceMap" is not registered in the container.',
 					37,
 				],
+				[
+					'Service "PHPStan\Rules\Symfony\ExampleController" is not registered in the container.',
+					43,
+				],
 			]
 		);
 	}

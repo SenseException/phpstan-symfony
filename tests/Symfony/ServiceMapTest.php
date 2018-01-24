@@ -6,7 +6,11 @@ use PhpParser\Node\Expr\BinaryOp\Concat;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\String_;
-use PHPUnit\Framework\TestCase;
+use PhpParser\PrettyPrinter\Standard;
+use PHPStan\Analyser\Scope;
+use PHPStan\Analyser\TypeSpecifier;
+use PHPStan\Rules\Symfony\ExampleController;
+use PHPStan\Testing\TestCase;
 
 /**
  * @covers \PHPStan\Symfony\ServiceMap
@@ -20,8 +24,13 @@ final class ServiceMapTest extends TestCase
 	 */
 	public function testGetServiceFromNode(array $service): void
 	{
+		$broker = $this->createBroker();
+		$printer = new Standard();
+		$typeSpecifier = new TypeSpecifier($printer);
+		$scope = new Scope($broker, $printer, $typeSpecifier, '');
+
 		$serviceMap = new ServiceMap(__DIR__ . '/data/container.xml');
-		self::assertEquals($service, $serviceMap->getServiceFromNode(new String_($service['id'])));
+		self::assertEquals($service, $serviceMap->getServiceFromNode(new String_($service['id']), $scope));
 	}
 
 	public function testFileNotExists(): void
@@ -45,9 +54,17 @@ final class ServiceMapTest extends TestCase
 
 	public function testGetServiceIdFromNode(): void
 	{
-		self::assertEquals('foo', ServiceMap::getServiceIdFromNode(new String_('foo')));
-		self::assertEquals('bar', ServiceMap::getServiceIdFromNode(new ClassConstFetch(new Name('bar'), '')));
-		self::assertEquals('foobar', ServiceMap::getServiceIdFromNode(new Concat(new String_('foo'), new ClassConstFetch(new Name('bar'), ''))));
+		$broker = $this->createBroker();
+		$printer = new Standard();
+		$typeSpecifier = new TypeSpecifier($printer);
+		$scope = new Scope($broker, $printer, $typeSpecifier, '');
+
+		self::assertEquals('foo', ServiceMap::getServiceIdFromNode(new String_('foo'), $scope));
+		self::assertEquals('bar', ServiceMap::getServiceIdFromNode(new ClassConstFetch(new Name('bar'), ''), $scope));
+		self::assertEquals('foobar', ServiceMap::getServiceIdFromNode(new Concat(new String_('foo'), new ClassConstFetch(new Name('bar'), '')), $scope));
+
+		$scope = $scope->enterClass($broker->getClass(ExampleController::class));
+		self::assertEquals(ExampleController::class, ServiceMap::getServiceIdFromNode(new ClassConstFetch(new Name('static'), ExampleController::class), $scope));
 	}
 
 }

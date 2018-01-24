@@ -7,6 +7,7 @@ use PhpParser\Node\Expr\BinaryOp\Concat;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Name;
 use PhpParser\Node\Scalar\String_;
+use PHPStan\Analyser\Scope;
 
 final class ServiceMap
 {
@@ -52,26 +53,23 @@ final class ServiceMap
 		}
 	}
 
-	public function getServiceFromNode(Node $node): ?array
+	public function getServiceFromNode(Node $node, Scope $scope): ?array
 	{
-		$serviceId = self::getServiceIdFromNode($node);
+		$serviceId = self::getServiceIdFromNode($node, $scope);
 		return $serviceId !== null && array_key_exists($serviceId, $this->services) ? $this->services[$serviceId] : null;
 	}
 
-	public static function getServiceIdFromNode(Node $node): ?string
+	public static function getServiceIdFromNode(Node $node, Scope $scope): ?string
 	{
 		if ($node instanceof String_) {
 			return $node->value;
 		}
 		if ($node instanceof ClassConstFetch && $node->class instanceof Name) {
-			$serviceId = $node->class->toString();
-			if (!in_array($serviceId, ['self', 'static', 'parent'], true)) {
-				return $serviceId;
-			}
+			return $scope->resolveName($node->class);
 		}
 		if ($node instanceof Concat) {
-			$left = self::getServiceIdFromNode($node->left);
-			$right = self::getServiceIdFromNode($node->right);
+			$left = self::getServiceIdFromNode($node->left, $scope);
+			$right = self::getServiceIdFromNode($node->right, $scope);
 			if ($left !== null && $right !== null) {
 				return sprintf('%s%s', $left, $right);
 			}
